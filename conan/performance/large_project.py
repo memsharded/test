@@ -1,6 +1,5 @@
 import unittest
 
-from conan.test_regression.utils.base_exe import path_dot
 from conans.test.utils.cpp_test_files import cpp_hello_conan_files
 import time
 from conans.test.utils.tools import TestClient
@@ -13,9 +12,11 @@ class PerformanceTest(unittest.TestCase):
 
     def large_project_test(self):
         client = TestClient()
-        num = 250
+        num = 50
         use_additional_infos = 20
+        short_paths = False
 
+        t1 = time.time()
         deep = True  # True for N ... -> 3 -> 2 -> 1 -> 0, False for N -> 0, 3-> 0, 2->0, 1->0
         for i in range(num):
             if i == 0:
@@ -30,10 +31,14 @@ class PerformanceTest(unittest.TestCase):
                                                   ["Hello%s/0.1@lasote/stable" % (i-1)],
                                                   build=False,
                                                   use_additional_infos=use_additional_infos)
+            if short_paths:
+                files["conanfile.py"] = files["conanfile.py"].replace('(ConanFile):',
+                                                                      '(ConanFile):\n    short_paths=True')
 
             client.save(files, clean_first=True)
-            client.run("export %s lasote/stable" % path_dot())
+            client.run("export . lasote/stable")
 
+        print("Export time %s" % (time.time() - t1))
         # Now lets depend on it
         if deep:
             files = cpp_hello_conan_files("HelloFinal", "0.1",
@@ -46,8 +51,8 @@ class PerformanceTest(unittest.TestCase):
 
         client.save(files, clean_first=True)
         t1 = time.time()
-        client.run("install --build")
+        client.run("install . --build")
         print("Final time with build %s" % (time.time() - t1))
         t1 = time.time()
-        client.run("install")
+        client.run("install .")
         print("Final time %s" % (time.time() - t1))
